@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <stdint.h>
+#include <float.h>
 
 #define internal static
 #define persistent static
 #define global static
 #define BYTES_PER_PIXEL 4
+#define R32_MIN -FLT_MAX
+#define R32_MAX FLT_MAX
 
 typedef int8_t s8;
 typedef int16_t s16;
@@ -24,36 +27,8 @@ typedef u32 b32;
 typedef float r32;
 typedef double r64;
 
-
-#pragma pack(push, 1)
-typedef struct bmp_t
-{
-u16 file_type;
-u32 file_size;
-u16 reserved1;
-u16 reserved2;
-u32 bmp_offset;
-u32 size;
-s32 width;
-s32 height;
-u16 planes;
-u16 bpp;
-u32 compression;
-u32 size_of_bmp;
-s32 horz_res;
-s32 vert_hes;
-u32 colors_used;
-u32 colors_important;
-} bmp_t;
-#pragma pack(pop)
-
-typedef struct image_t
-{
-u32 width;
-u32 height;
-u32 num_bytes;
-u32 *pixels;
-} image_t;
+#include "ray_math.h"
+#include "bmp.h"
 
 internal void
 Render(image_t *image)
