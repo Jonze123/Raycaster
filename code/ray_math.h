@@ -1,5 +1,16 @@
 #if !defined(MATH_H)
 #define MATH_H
+#include <math.h>
+
+union vec4_t 
+{
+	struct { r32 x, y, z, w; };
+	struct { r32 r, g, b, a; };
+	r32 data[4];
+    
+	r32 &operator[](int i)			{ return data[i]; }
+	const r32 &operator[](int i) const	{ return data[i]; }
+};
 
 union vec3_t 
 {
@@ -221,14 +232,93 @@ r32 result = (1.0f - t)*a + t*b;
 return result;
 }
 
+internal inline vec3_t
+Vec3Norm(vec3_t v) 
+{
+	vec3_t n = {};
+	r32 len; 
+r32 ilen;
+    
+	len = Dot3(v, v);
+	len = (r32)sqrt(len);
+    
+	if (len) 
+{
+		ilen = 1.0f / len;
+		n[0] = v[0] * ilen;
+		n[1] = v[1] * ilen;
+		n[2] = v[2] * ilen;
+	}
+    
+	return n;
+}
+
+internal inline vec3_t 
+Cross3(vec3_t v1, vec3_t v2) 
+{
+	vec3_t result = {};
+    
+	result[0] = (v1[1]*v2[2]) - (v1[2]*v2[1]);
+	result[1] = (v1[2]*v2[0]) - (v1[0]*v2[2]);
+	result[2] = (v1[0]*v2[1]) - (v1[1]*v2[0]);
+    
+	return result;
+}
+
+internal inline u32 
+RoundReal32ToU32(r32 value) 
+{
+	u32 result = (u32)(value + 0.5f);
+	return result;
+}
+
+u32 PackRGBA(vec4_t color) 
+{
+	u32 result = (RoundReal32ToU32(color.a * 255.0f) << 24 |
+				  RoundReal32ToU32(color.r * 255.0f) << 16 |
+				  RoundReal32ToU32(color.g * 255.0f) << 8  |
+				  RoundReal32ToU32(color.b * 255.0f));
+    
+	return result;
+}
+
 typedef struct plane_t
 {
 vec3_t n;
 r32 d;
+u32 mat_index;
 } plane_t;
+
+typedef struct material_t
+{
+vec3_t color;
+} material_t;
+
+typedef struct sphere_t
+{
+r32 r;
+vec3_t p;
+u32 mat_index;
+} sphere_t;
+
 typedef struct world_t
 {
+u32 num_materials;
+material_t *materials;
+u32 num_planes;
+plane_t *planes;
+u32 num_spheres;
+sphere_t *spheres;
 } world_t;
+
+typedef struct viewpoint_t
+{
+vec3_t pos;
+vec3_t local_x;
+vec3_t local_y;
+vec3_t local_z;
+} viewpoint_t;
+
 
 
 #endif   // MATH_H

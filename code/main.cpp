@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <stdint.h>
 #include <float.h>
+#include <assert.h>
 
 #define internal static
 #define persistent static
@@ -9,6 +10,7 @@
 #define BYTES_PER_PIXEL 4
 #define R32_MIN -FLT_MAX
 #define R32_MAX FLT_MAX
+#define ERROR assert(0);
 
 typedef int8_t s8;
 typedef int16_t s16;
@@ -30,28 +32,94 @@ typedef double r64;
 #include "ray_math.h"
 #include "bmp.h"
 
+internal vec3_t
+RayCast(world_t *world, vec3_t ray_origin, vec3_t ray_dir)
+{
+vec3_t result = world->materials[0].color;
+r32 hit_distance = R32_MAX;
+
+r32 tolerance = 0.00001f;
+for(u32 i = 0; i < world->num_planes; i++)
+{
+plane_t plane = world->planes[i];
+
+r32 denom = Dot3(plane.n, ray_dir);
+if((denom < -tolerance) || (denom > tolerance))
+{
+r32 t = (-plane.d - Dot3(plane.n, ray_origin)) / denom;
+if((t < hit_distance) && (t > 0))
+{
+hit_distance = t;
+result = world->materials[plane.mat_index].color;
+}
+}
+}
+
+for(u32 i = 0; i < world->num_spheres; i++)
+{
+sphere_t sphere = world->spheres[i];
+        
+vec3_t sphere_relative_origin = ray_origin - sphere.p;
+r32 a = Dot3(ray_dir, ray_dir);
+r32 b = 2.0f*Dot3(ray_dir, sphere_relative_origin);
+r32 c = Dot3(sphere_relative_origin, sphere_relative_origin) - sphere.r*sphere.r;
+
+r32 denom = 2.0f*a;
+r32 root_term = (r32)sqrt(b*b - 4.0f*a*c);
+if(root_term > tolerance)
+{
+r32 tp = (-b + root_term) / denom;
+r32 tn = (-b - root_term) / denom;
+
+r32 t = tp;
+if((tn > 0) && (tn < tp))
+{
+t = tn;
+}
+if((t > 0) && (t < hit_distance))
+{
+hit_distance = t;
+result = world->materials[sphere.mat_index].color;
+}
+}
+}
+
+return result;
+}
+
+// Image plane is -1 to 1 inclusive on x and y
 internal void
-Render(image_t *image)
+RayTrace(world_t *world, image_t *image, viewpoint_t *eye)
 {
     u32 *pixel = image->pixels;
-    for(u32 y = 0; y < image->height; y++)
+    u32 image_width = image->width;
+    u32 image_height = image->height;
+
+r32 eye_dist = 1.0f;
+vec3_t eye_look_at = eye->pos - eye_dist*eye->local_z;
+vec3_t look_at_min = eye_look_at - (eye->local_x + eye->local_y);
+
+for(u32 y = 0; y < image->height; y++)
     {
-        for(u32 x = 0; x < image->width; x++)
+r32 image_y = ((2.0f / (r32)(image_height-1))*(y - 0)) - 1;
+for(u32 x = 0; x < image->width; x++)
         {
-            if(y < 32)
-            {
-                *pixel++ = 0xFFFF0000;
-            }
-            else
-            {
-                *pixel++ = 0xFF0000FF;
-            }
+            r32 image_x = ((2.0f / (r32)(image_width-1))*(x - 0)) - 1;
+            
+vec3_t point_in_plane = look_at_min + (image_x+1.0f)*eye->local_x + (image_y+1.0f)*eye->local_y;
+
+vec3_t ray_origin = eye->pos;
+vec3_t ray_dir = Vec3Norm(point_in_plane - ray_origin);
+
+vec3_t temp_color = RayCast(world, ray_origin, ray_dir);
+vec4_t final_color = {temp_color.r, temp_color.g, temp_color.b, 255.0f};
+            *pixel++ = PackRGBA(final_color);
         }
     }
 }
 
 internal void
-SaveBMP(const image_t *image, char *filename)
+SaveBMP(image_t *image, char *filename)
 {
     bmp_t header = {0};
     header.file_type = 0x4d42;
@@ -80,6 +148,7 @@ SaveBMP(const image_t *image, char *filename)
     else
     {
         fprintf(stderr, "Unable to write output file %s", filename);
+ERROR;
     }
 }
 
@@ -98,6 +167,11 @@ else
 {
 result.pixels = (u32 *)allocator(result.num_bytes);
 }
+if(!result.pixels)
+{
+fprintf(stderr, "Error allocating memory for image!\n");
+ERROR;
+}
 
 return result;
 }
@@ -105,9 +179,47 @@ return result;
 int 
 main(int argc, char **argv)
 {
-image_t bmp_image = CreateImage(1280, 720, NULL);
-Render(&bmp_image);
+printf("Ray casting...\n");
+image_t bmp_image = CreateImage(800, 600, NULL);
+
+material_t materials[3];
+materials[0] = {0.1f, 0.2f, 0.6f};
+materials[1] = {1.0f, 0.0f, 0.0f};
+materials[2] = {1.0f, 1.0f, 1.0f};
+
+plane_t plane = {};
+plane.n = {0.0f, 0.0f, 1.0f};
+plane.d = 0;
+plane.mat_index = 1;
+
+sphere_t sphere = {};
+sphere.p = {0.0f, 20.0f, 5.0f};
+sphere.r = 8.0f;
+sphere.mat_index = 2;
+
+world_t world = {};
+world.num_materials = 3;
+world.materials = materials;
+world.num_planes = 1;
+world.planes = &plane;
+world.num_spheres = 1;
+world.spheres = &sphere;
+
+vec3_t eye_pos = {0.0f, -50.0f, 5.0f};
+vec3_t eye_z = Vec3Norm(eye_pos);
+vec3_t eye_x = Vec3Norm(Cross3(vec3_t{0.0f, 0.0f, 1.0f}, eye_z));
+vec3_t eye_y = Vec3Norm(Cross3(eye_z, eye_x));
+
+viewpoint_t eye = {};
+eye.pos = eye_pos;
+eye.local_x = eye_x;
+eye.local_y = eye_y;
+eye.local_z = eye_z;
+
+RayTrace(&world, &bmp_image, &eye);
 SaveBMP(&bmp_image, "test.bmp");
+
+printf("Done!\n");
 
 return 0;
 }
