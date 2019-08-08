@@ -90,24 +90,37 @@ result = world->materials[sphere.mat_index].color;
 return result;
 }
 
-// Image plane is -1 to 1 inclusive on x and y
 internal void
 RayTrace(world_t *world, image_t *image, viewpoint_t *eye)
 {
     u32 *pixel = image->pixels;
     u32 image_width = image->width;
     u32 image_height = image->height;
+r32 image_plane_x = 1.0f;
+r32 image_plane_y = 1.0f;
 
+if(image_width < image_height)
+{
+r32 image_ratio = ((r32)image_width / (r32)image_height);
+image_plane_x = image_plane_y * image_ratio;
+}
+else if(image_width > image_height)
+{
+r32 image_ratio = ((r32)image_height / (r32)image_width);
+        image_plane_y = image_plane_x * image_ratio;
+}
+r32 image_plane_width = (image_plane_x - (-image_plane_x));
+r32 image_plane_height = (image_plane_y - (-image_plane_y));
 r32 eye_dist = 1.0f;
 vec3_t eye_look_at = eye->pos - eye_dist*eye->local_z;
 vec3_t look_at_min = eye_look_at - (eye->local_x + eye->local_y);
 
 for(u32 y = 0; y < image->height; y++)
     {
-r32 image_y = ((2.0f / (r32)(image_height-1))*(y - 0)) - 1;
+r32 image_y = ((image_plane_height / (r32)(image_height-1))*(y - 0)) - image_plane_y;
 for(u32 x = 0; x < image->width; x++)
         {
-            r32 image_x = ((2.0f / (r32)(image_width-1))*(x - 0)) - 1;
+            r32 image_x = ((image_plane_width / (r32)(image_width-1))*(x - 0)) - image_plane_x;
             
 vec3_t point_in_plane = look_at_min + (image_x+1.0f)*eye->local_x + (image_y+1.0f)*eye->local_y;
 
@@ -183,7 +196,7 @@ int
 main(int argc, char **argv)
 {
 printf("Ray casting...\n");
-image_t bmp_image = CreateImage(800, 600, NULL);
+image_t bmp_image = CreateImage(1280, 720, NULL);
 
 material_t materials[4];
 materials[0] = {0.1f, 0.2f, 0.6f};
@@ -198,7 +211,7 @@ planes[0].d = 0;
 planes[0].mat_index = 3;
 
     sphere_t spheres[3] = {};
-spheres[0].p = {0.0f, 0.0f, 70.0f};
+spheres[0].p = {0.0f, 0.0f, 30.0f};
 spheres[0].r = 8.0f;
 spheres[0].mat_index = 1;
 
