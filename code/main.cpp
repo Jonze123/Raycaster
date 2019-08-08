@@ -12,6 +12,8 @@
 #define R32_MAX FLT_MAX
 #define ERROR assert(0);
 
+#define ArrayCount(arr) (sizeof(arr)/sizeof(arr[0]))
+
 typedef int8_t s8;
 typedef int16_t s16;
 typedef int32_t s32;
@@ -32,6 +34,7 @@ typedef double r64;
 #include "ray_math.h"
 #include "bmp.h"
 
+// ray_origin is in Worldspace
 internal vec3_t
 RayCast(world_t *world, vec3_t ray_origin, vec3_t ray_dir)
 {
@@ -59,10 +62,10 @@ for(u32 i = 0; i < world->num_spheres; i++)
 {
 sphere_t sphere = world->spheres[i];
         
-vec3_t sphere_relative_origin = ray_origin - sphere.p;
+vec3_t sphere_to_origin = ray_origin - sphere.p;   // Translate the ray origin so that the sphere is at 0,0,0
 r32 a = Dot3(ray_dir, ray_dir);
-r32 b = 2.0f*Dot3(ray_dir, sphere_relative_origin);
-r32 c = Dot3(sphere_relative_origin, sphere_relative_origin) - sphere.r*sphere.r;
+r32 b = 2.0f*Dot3(ray_dir, sphere_to_origin);
+r32 c = Dot3(sphere_to_origin, sphere_to_origin) - sphere.r*sphere.r;
 
 r32 denom = 2.0f*a;
 r32 root_term = (r32)sqrt(b*b - 4.0f*a*c);
@@ -108,7 +111,7 @@ for(u32 x = 0; x < image->width; x++)
             
 vec3_t point_in_plane = look_at_min + (image_x+1.0f)*eye->local_x + (image_y+1.0f)*eye->local_y;
 
-vec3_t ray_origin = eye->pos;
+vec3_t ray_origin = eye->pos;   // in Worldspace
 vec3_t ray_dir = Vec3Norm(point_in_plane - ray_origin);
 
 vec3_t temp_color = RayCast(world, ray_origin, ray_dir);
@@ -182,30 +185,40 @@ main(int argc, char **argv)
 printf("Ray casting...\n");
 image_t bmp_image = CreateImage(800, 600, NULL);
 
-material_t materials[3];
+material_t materials[4];
 materials[0] = {0.1f, 0.2f, 0.6f};
 materials[1] = {1.0f, 0.0f, 0.0f};
 materials[2] = {1.0f, 1.0f, 1.0f};
+materials[3] = {0.3f, 0.3f, 0.3f};
 
-plane_t plane = {};
-plane.n = {0.0f, 0.0f, 1.0f};
-plane.d = 0;
-plane.mat_index = 1;
+// Worldspace: x goes to right, y goes forward, z goes up
+plane_t planes[1] = {};
+planes[0].n = {0.0f, 0.0f, 1.0f};
+planes[0].d = 0;
+planes[0].mat_index = 3;
 
-sphere_t sphere = {};
-sphere.p = {0.0f, 20.0f, 5.0f};
-sphere.r = 8.0f;
-sphere.mat_index = 2;
+    sphere_t spheres[3] = {};
+spheres[0].p = {0.0f, 0.0f, 70.0f};
+spheres[0].r = 8.0f;
+spheres[0].mat_index = 1;
 
+    spheres[1].p = {50.0f, 0.0f, 10.0f};
+    spheres[1].r = 11.0f;
+    spheres[1].mat_index = 2;
+
+    spheres[2].p = {-30.0f, -50.0f, -2.0f};
+    spheres[2].r = 11.0f;
+    spheres[2].mat_index = 1;
+    
 world_t world = {};
-world.num_materials = 3;
+world.num_materials = ArrayCount(materials);
 world.materials = materials;
-world.num_planes = 1;
-world.planes = &plane;
-world.num_spheres = 1;
-world.spheres = &sphere;
+world.num_planes = ArrayCount(planes);
+world.planes = planes;
+world.num_spheres = ArrayCount(spheres);
+world.spheres = spheres;
 
-vec3_t eye_pos = {0.0f, -50.0f, 5.0f};
+vec3_t eye_pos = {0.0f, -100.0f, 10.0f};
 vec3_t eye_z = Vec3Norm(eye_pos);
 vec3_t eye_x = Vec3Norm(Cross3(vec3_t{0.0f, 0.0f, 1.0f}, eye_z));
 vec3_t eye_y = Vec3Norm(Cross3(eye_z, eye_x));
