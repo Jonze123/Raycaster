@@ -10,6 +10,9 @@
 #define BYTES_PER_PIXEL 4
 #define R32_MIN -FLT_MAX
 #define R32_MAX FLT_MAX
+#ifdef ERROR
+#undef ERROR
+#endif // ERROR
 #define ERROR assert(0);
 
 #define ArrayCount(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -197,7 +200,7 @@ return result;
 int 
 main(int argc, char **argv)
 {
-image_t bmp_image = CreateImage(1280, 720, NULL);
+image_t ray_traced_image = CreateImage(1280, 720, NULL);
 
 material_t materials[4];
 materials[0] = {0.1f, 0.2f, 0.6f};
@@ -243,8 +246,8 @@ eye.local_x = eye_x;
 eye.local_y = eye_y;
 eye.local_z = eye_z;
 
-RayTrace(&world, &bmp_image, &eye);
-SaveBMP(&bmp_image, "test.bmp");
+RayTrace(&world, &ray_traced_image, &eye);
+SaveBMP(&ray_traced_image, "ray.bmp");
 
 printf("\nDone!\n");
 
