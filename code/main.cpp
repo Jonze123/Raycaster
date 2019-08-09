@@ -131,6 +131,8 @@ vec3_t temp_color = RayCast(world, ray_origin, ray_dir);
 vec4_t final_color = {temp_color.r, temp_color.g, temp_color.b, 255.0f};
             *pixel++ = PackRGBA(final_color);
         }
+printf("\rRaycasting: %d%%", (100*(y+1))/image_height);
+fflush(stdout);
     }
 }
 
@@ -195,7 +197,6 @@ return result;
 int 
 main(int argc, char **argv)
 {
-printf("Ray casting...\n");
 image_t bmp_image = CreateImage(1280, 720, NULL);
 
 material_t materials[4];
@@ -245,7 +246,7 @@ eye.local_z = eye_z;
 RayTrace(&world, &bmp_image, &eye);
 SaveBMP(&bmp_image, "test.bmp");
 
-printf("Done!\n");
+printf("\nDone!\n");
 
 return 0;
 }
