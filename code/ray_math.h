@@ -265,6 +265,17 @@ Cross3(vec3_t v1, vec3_t v2)
 	return result;
 }
 
+internal inline vec3_t
+Hadamard(vec3_t a, vec3_t b)
+{
+vec3_t result = {};
+result[0] = a[0]*b[0];
+result[1] = a[1]*b[1];
+result[2] = a[2]*b[2];
+
+return result;
+}
+
 internal inline u32 
 RoundReal32ToU32(r32 value) 
 {
