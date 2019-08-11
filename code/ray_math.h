@@ -226,10 +226,14 @@ Dot3(vec3_t v1, r32 *v2)
 	return result;
 }
 
-internal inline r32
-Lerp(r32 a, r32 b, r32 t)
+internal inline vec3_t
+Lerp(vec3_t a, vec3_t b, r32 t)
 {
-r32 result = (1.0f - t)*a + t*b;
+vec3_t result = {};
+result[0] = (1.0f - t)*a[0] + t*b[0];
+result[1] = (1.0f - t)*a[1] + t*b[1];
+result[2] = (1.0f - t)*a[2] + t*b[2];
+
 return result;
 }
 
