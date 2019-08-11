@@ -323,7 +323,9 @@ u32 material_index;
 
 typedef struct material_t
 {
-vec3_t color;
+r32 scatter;
+vec3_t emit_color;
+vec3_t refl_color;
 } material_t;
 
 typedef struct sphere_t
