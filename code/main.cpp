@@ -41,10 +41,18 @@ typedef double r64;
 internal vec3_t
 RayCast(world_t *world, vec3_t ray_origin, vec3_t ray_dir)
 {
-vec3_t result = world->materials[0].color;
+vec3_t result = {};
+vec3_t attenuation = {1.0f, 1.0f, 1.0f};
+
 r32 hit_distance = R32_MAX;
 
 r32 tolerance = 0.00001f;
+r32 min_distance = 0.01f;
+for(u32 ray = 0; ray < 8; ray++)
+{
+vec3_t next_origin = {};
+vec3_t next_normal = {};
+u32 hit_material_index = 0;
 for(u32 i = 0; i < world->num_planes; i++)
 {
 plane_t plane = world->planes[i];
@@ -53,10 +61,12 @@ r32 denom = Dot3(plane.n, ray_dir);
 if((denom < -tolerance) || (denom > tolerance))
 {
 r32 t = (-plane.d - Dot3(plane.n, ray_origin)) / denom;
-if((t < hit_distance) && (t > 0))
+if((t < hit_distance) && (t > min_distance))
 {
 hit_distance = t;
-result = world->materials[plane.mat_index].color;
+next_origin = ray_origin + ray_dir*hit_distance;
+next_normal = Vec3Norm(plane.n);
+hit_material_index = plane.material_index;
 }
 }
 }
@@ -65,7 +75,7 @@ for(u32 i = 0; i < world->num_spheres; i++)
 {
 sphere_t sphere = world->spheres[i];
         
-vec3_t sphere_to_origin = ray_origin - sphere.p;   // Translate the ray origin so that the sphere is at 0,0,0
+vec3_t sphere_to_origin = ray_origin - sphere.p;   // Translate the ray origin so that the sphere is at 0,0,0 then do the computations!!
 r32 a = Dot3(ray_dir, ray_dir);
 r32 b = 2.0f*Dot3(ray_dir, sphere_to_origin);
 r32 c = Dot3(sphere_to_origin, sphere_to_origin) - sphere.r*sphere.r;
@@ -82,11 +92,33 @@ if((tn > 0) && (tn < tp))
 {
 t = tn;
 }
-if((t > 0) && (t < hit_distance))
+if((t < hit_distance) && (t > min_distance))
 {
 hit_distance = t;
-result = world->materials[sphere.mat_index].color;
+next_origin = ray_origin + ray_dir*hit_distance;
+next_normal = Vec3Norm(next_origin - sphere.p);
+hit_material_index = sphere.material_index;
 }
+}
+}
+if(hit_material_index)
+{
+material_t mat = world->materials[hit_material_index];
+result = result + Hadamard(mat.emit_color, attenuation);
+attenuation = Hadamard(mat.refl_color, attenuation);
+ray_origin = next_origin;
+
+vec3_t pure_bounce = ((2.0f*Dot3(next_normal, next_origin))*next_normal) - next_origin;
+vec3_t random_bounce = Vec3Norm(next_normal + vec3_t{RandomBilateral(), RandomBilateral(), RandomBilateral()});
+
+ray_dir = Vec3Norm(Lerp(random_bounce, pure_bounce, 0.0f));
+}
+else
+{
+            material_t mat = world->materials[hit_material_index];
+result = result + Hadamard(mat.emit_color, attenuation);
+            
+break;
 }
 }
 
