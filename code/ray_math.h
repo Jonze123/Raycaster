@@ -1,6 +1,7 @@
 #if !defined(MATH_H)
 #define MATH_H
 #include <math.h>
+#include <stdlib.h>
 
 union vec4_t 
 {
@@ -291,6 +292,22 @@ u32 PackRGBA(vec4_t color)
 				  RoundReal32ToU32(color.b * 255.0f));
     
 	return result;
+}
+
+internal r32
+RandomUnilateral()
+{
+r32 result = (r32)rand() / (r32)RAND_MAX;
+
+return result;
+}
+
+internal r32
+RandomBilateral()
+{
+r32 result = -1.0f + 2.0f*RandomUnilateral();
+
+return result;
 }
 
 typedef struct plane_t
