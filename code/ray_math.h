@@ -318,7 +318,7 @@ typedef struct plane_t
 {
 vec3_t n;
 r32 d;
-u32 mat_index;
+u32 material_index;
 } plane_t;
 
 typedef struct material_t
@@ -330,7 +330,7 @@ typedef struct sphere_t
 {
 r32 r;
 vec3_t p;
-u32 mat_index;
+u32 material_index;
 } sphere_t;
 
 typedef struct world_t
