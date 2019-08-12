@@ -255,12 +255,15 @@ main(int argc, char **argv)
 {
 image_t ray_traced_image = CreateImage(1280, 720, NULL);
 
-material_t materials[4] = {};
+material_t materials[6] = {};
 materials[0].emit_color = {0.3f, 0.4f, 0.5f};
 materials[1].refl_color = {0.5f, 0.5f, 0.5f};
 materials[2].refl_color = {0.7f, 0.5f, 0.3f};
-materials[3].refl_color = {0.2f, 0.9f, 0.2f};
-materials[3].scatter = 1.0f;
+materials[3].refl_color = {0.2f, 0.8f, 0.2f};
+materials[3].scatter = 0.5f;
+materials[4].emit_color = {0.8f, 0.0f, 0.0f};
+materials[5].refl_color = {0.95f, 0.95f, 0.95f};
+materials[5].scatter = 0.97f;
 
 // Worldspace: x goes to right, y goes forward, z goes up the plane
 plane_t planes[1] = {};
@@ -268,18 +271,23 @@ planes[0].n = {0.0f, 0.0f, 1.0f};
 planes[0].d = 0;
 planes[0].material_index = 1;
 
-    sphere_t spheres[3] = {};
-spheres[0].p = {-3.5f, 3.0f, 2.0f};
+    sphere_t spheres[4] = {};
+spheres[0].p = {-0.5f, 1.0f, 2.1f};
 spheres[0].r = 1.0f;
 spheres[0].material_index = 3;
 
-    spheres[1].p = {2.0f, 0.0f, 0.0f};
-    spheres[1].r = 1.0f;
+    spheres[1].p = {-2.0f, -2.0f, 1.5f};
+    spheres[1].r = 0.25f;
     spheres[1].material_index = 2;
 
-    spheres[2].p = {-1.0f, 0.0f, 0.0f};
+    spheres[2].p = {2.0f, -1.0f, -0.1f};
     spheres[2].r = 1.0f;
-    spheres[2].material_index = 2;
+    spheres[2].material_index = 4;
+
+    spheres[3].p = {-2.5f, 0.5f, 1.5f};
+    spheres[3].r = 1.0f;
+    spheres[3].material_index = 5;
+
     
 world_t world = {};
 world.num_materials = ArrayCount(materials);
@@ -289,7 +297,7 @@ world.planes = planes;
 world.num_spheres = ArrayCount(spheres);
 world.spheres = spheres;
 
-vec3_t eye_pos = {0.0f, -5.0f, 1.0f};
+vec3_t eye_pos = {0.0f, -5.0f, 2.0f};
 vec3_t eye_z = Vec3Norm(eye_pos);
 vec3_t eye_x = Vec3Norm(Cross3(vec3_t{0.0f, 0.0f, 1.0f}, eye_z));
 vec3_t eye_y = Vec3Norm(Cross3(eye_z, eye_x));
