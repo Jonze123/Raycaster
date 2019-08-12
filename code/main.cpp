@@ -44,15 +44,14 @@ RayCast(world_t *world, vec3_t ray_origin, vec3_t ray_dir)
 vec3_t result = {};
 vec3_t attenuation = {1.0f, 1.0f, 1.0f};
 
-r32 hit_distance = R32_MAX;
-
 r32 tolerance = 0.00001f;
 r32 min_distance = 0.01f;
+vec3_t next_normal = {};
+vec3_t next_origin = {};
 for(u32 ray = 0; ray < 8; ray++)
 {
-vec3_t next_origin = {};
-vec3_t next_normal = {};
 u32 hit_material_index = 0;
+r32 hit_distance = R32_MAX;
 for(u32 i = 0; i < world->num_planes; i++)
 {
 plane_t plane = world->planes[i];
@@ -75,7 +74,8 @@ for(u32 i = 0; i < world->num_spheres; i++)
 {
 sphere_t sphere = world->spheres[i];
         
-vec3_t sphere_to_origin = ray_origin - sphere.p;   // Translate the ray origin so that the sphere is at 0,0,0 then do the computations!!
+// Translate the ray origin
+vec3_t sphere_to_origin = ray_origin - sphere.p;
 r32 a = Dot3(ray_dir, ray_dir);
 r32 b = 2.0f*Dot3(ray_dir, sphere_to_origin);
 r32 c = Dot3(sphere_to_origin, sphere_to_origin) - sphere.r*sphere.r;
@@ -104,14 +104,29 @@ hit_material_index = sphere.material_index;
 if(hit_material_index)
 {
 material_t mat = world->materials[hit_material_index];
-result = result + Hadamard(mat.emit_color, attenuation);
-attenuation = Hadamard(mat.refl_color, attenuation);
-ray_origin = next_origin;
+r32 cos_term = Dot3(-ray_dir, next_normal);
 
-vec3_t pure_bounce = ((2.0f*Dot3(next_normal, next_origin))*next_normal) - next_origin;
+if(cos_term < 0.0f)
+{
+cos_term = 0.0f;
+}
+cos_term = 1.0f;
+result = result + Hadamard(mat.emit_color, attenuation);
+attenuation = Hadamard(cos_term*mat.refl_color, attenuation);
+
+//vec3_t pure_bounce = ray_origin + (2.0f*Dot3(Vec3Norm(ray_dir), next_normal)*next_normal) - Vec3Norm(ray_dir);
+
+vec3_t unit_ray_dir = Vec3Norm(ray_origin - next_origin);
+
+ray_origin = next_origin;
+vec3_t pure_bounce =
+                2.0f*Dot3(next_normal, unit_ray_dir)*next_normal - unit_ray_dir;
+
+
 vec3_t random_bounce = Vec3Norm(next_normal + vec3_t{RandomBilateral(), RandomBilateral(), RandomBilateral()});
 
-ray_dir = Vec3Norm(Lerp(random_bounce, pure_bounce, 0.0f));
+ray_dir = Vec3Norm(Lerp(random_bounce, pure_bounce, mat.scatter));
+//ray_dir = Vec3Norm(random_bounce);
 }
 else
 {
@@ -129,7 +144,9 @@ internal void
 RayTrace(world_t *world, image_t *image, viewpoint_t *eye)
 {
     u32 *pixel = image->pixels;
-    u32 image_width = image->width;
+    u32 rays_per_pixel = 32;
+r32 pixel_filter = 1.0f / (r32)rays_per_pixel;
+u32 image_width = image->width;
     u32 image_height = image->height;
 r32 image_plane_x = 1.0f;
 r32 image_plane_y = 1.0f;
@@ -162,7 +179,11 @@ vec3_t point_in_plane = look_at_min + (image_x+1.0f)*eye->local_x + (image_y+1.0
 vec3_t ray_origin = eye->pos;   // in Worldspace
 vec3_t ray_dir = Vec3Norm(point_in_plane - ray_origin);
 
-vec3_t temp_color = RayCast(world, ray_origin, ray_dir);
+vec3_t temp_color = {};
+for(u32 ray = 0; ray < rays_per_pixel; ray++)
+{
+temp_color = temp_color + pixel_filter*RayCast(world, ray_origin, ray_dir);
+}
 vec4_t final_color = {temp_color.r, temp_color.g, temp_color.b, 255.0f};
             *pixel++ = PackRGBA(final_color);
         }
@@ -234,30 +255,31 @@ main(int argc, char **argv)
 {
 image_t ray_traced_image = CreateImage(1280, 720, NULL);
 
-material_t materials[4];
-materials[0] = {0.1f, 0.2f, 0.6f};
-materials[1] = {1.0f, 0.0f, 0.0f};
-materials[2] = {1.0f, 1.0f, 1.0f};
-materials[3] = {0.3f, 0.3f, 0.3f};
+material_t materials[4] = {};
+materials[0].emit_color = {0.3f, 0.4f, 0.5f};
+materials[1].refl_color = {0.5f, 0.5f, 0.5f};
+materials[2].refl_color = {0.7f, 0.5f, 0.3f};
+materials[3].refl_color = {0.2f, 0.9f, 0.2f};
+materials[3].scatter = 1.0f;
 
-// Worldspace: x goes to right, y goes forward, z goes up
+// Worldspace: x goes to right, y goes forward, z goes up the plane
 plane_t planes[1] = {};
 planes[0].n = {0.0f, 0.0f, 1.0f};
 planes[0].d = 0;
-planes[0].mat_index = 3;
+planes[0].material_index = 1;
 
     sphere_t spheres[3] = {};
-spheres[0].p = {0.0f, 0.0f, 30.0f};
-spheres[0].r = 8.0f;
-spheres[0].mat_index = 1;
+spheres[0].p = {-3.5f, 3.0f, 2.0f};
+spheres[0].r = 1.0f;
+spheres[0].material_index = 3;
 
-    spheres[1].p = {50.0f, 0.0f, 10.0f};
-    spheres[1].r = 11.0f;
-    spheres[1].mat_index = 2;
+    spheres[1].p = {2.0f, 0.0f, 0.0f};
+    spheres[1].r = 1.0f;
+    spheres[1].material_index = 2;
 
-    spheres[2].p = {-30.0f, -50.0f, -2.0f};
-    spheres[2].r = 11.0f;
-    spheres[2].mat_index = 1;
+    spheres[2].p = {-1.0f, 0.0f, 0.0f};
+    spheres[2].r = 1.0f;
+    spheres[2].material_index = 2;
     
 world_t world = {};
 world.num_materials = ArrayCount(materials);
@@ -267,7 +289,7 @@ world.planes = planes;
 world.num_spheres = ArrayCount(spheres);
 world.spheres = spheres;
 
-vec3_t eye_pos = {0.0f, -100.0f, 10.0f};
+vec3_t eye_pos = {0.0f, -5.0f, 1.0f};
 vec3_t eye_z = Vec3Norm(eye_pos);
 vec3_t eye_x = Vec3Norm(Cross3(vec3_t{0.0f, 0.0f, 1.0f}, eye_z));
 vec3_t eye_y = Vec3Norm(Cross3(eye_z, eye_x));
