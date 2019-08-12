@@ -1,1 +1,1 @@
-Raytraced image is build/ray.bmp
+Raytraced image is build/ray.bmp (click view raw)
