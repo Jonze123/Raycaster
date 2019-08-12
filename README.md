@@ -1,1 +1,1 @@
-Raytraced image is build/ray.bmp (click view raw)
+Generated image is found in build/ray.bmp (click view raw)
