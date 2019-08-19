@@ -44,11 +44,12 @@ RayCast(world_t *world, vec3_t ray_origin, vec3_t ray_dir)
 vec3_t result = {};
 vec3_t attenuation = {1.0f, 1.0f, 1.0f};
 
+u32 num_rays_to_trace = 8;
 r32 tolerance = 0.00001f;
 r32 min_distance = 0.01f;
 vec3_t next_normal = {};
 vec3_t next_origin = {};
-for(u32 ray = 0; ray < 8; ray++)
+for(u32 ray = 0; ray < num_rays_to_trace; ray++)
 {
 u32 hit_material_index = 0;
 r32 hit_distance = R32_MAX;
@@ -110,7 +111,6 @@ if(cos_term < 0.0f)
 {
 cos_term = 0.0f;
 }
-cos_term = 1.0f;
 result = result + Hadamard(mat.emit_color, attenuation);
 attenuation = Hadamard(cos_term*mat.refl_color, attenuation);
 
@@ -144,8 +144,8 @@ internal void
 RayTrace(world_t *world, image_t *image, viewpoint_t *eye)
 {
     u32 *pixel = image->pixels;
-    u32 rays_per_pixel = 32;
-r32 pixel_filter = 1.0f / (r32)rays_per_pixel;
+    u32 num_rays_per_pixel = 32;
+r32 pixel_filter = 1.0f / (r32)num_rays_per_pixel;
 u32 image_width = image->width;
     u32 image_height = image->height;
 r32 image_plane_x = 1.0f;
@@ -180,12 +180,18 @@ vec3_t ray_origin = eye->pos;   // in Worldspace
 vec3_t ray_dir = Vec3Norm(point_in_plane - ray_origin);
 
 vec3_t temp_color = {};
-for(u32 ray = 0; ray < rays_per_pixel; ray++)
+for(u32 ray = 0; ray < num_rays_per_pixel; ray++)
 {
 temp_color = temp_color + pixel_filter*RayCast(world, ray_origin, ray_dir);
 }
-vec4_t final_color = {temp_color.r, temp_color.g, temp_color.b, 255.0f};
-            *pixel++ = PackRGBA(final_color);
+vec4_t final_color = 
+{
+ExactLinearTosRGB(temp_color.r), 
+ExactLinearTosRGB(temp_color.g), 
+ExactLinearTosRGB(temp_color.b), 
+255.0f
+};
+*pixel++ = PackRGBA(final_color);
         }
 printf("\rRaycasting: %d%%", (100*(y+1))/image_height);
 fflush(stdout);
@@ -259,11 +265,11 @@ material_t materials[6] = {};
 materials[0].emit_color = {0.3f, 0.4f, 0.5f};
 materials[1].refl_color = {0.5f, 0.5f, 0.5f};
 materials[2].refl_color = {0.7f, 0.5f, 0.3f};
-materials[3].refl_color = {0.2f, 0.8f, 0.2f};
-materials[3].scatter = 0.5f;
-materials[4].emit_color = {0.8f, 0.0f, 0.0f};
-materials[5].refl_color = {0.95f, 0.95f, 0.95f};
-materials[5].scatter = 0.97f;
+materials[3].emit_color = {8.0f, 0.0f, 0.0f};
+materials[4].refl_color = {0.2f, 0.8f, 0.2f};
+materials[4].scatter = 0.7f;
+materials[5].refl_color = {0.4f, 0.8f, 0.9f};
+materials[5].scatter = 0.85f;
 
 // Worldspace: x goes to right, y goes forward, z goes up the plane
 plane_t planes[1] = {};
@@ -271,23 +277,42 @@ planes[0].n = {0.0f, 0.0f, 1.0f};
 planes[0].d = 0;
 planes[0].material_index = 1;
 
+    #if 0
+planes[1].n = {1.0f, 0.0f, 0.0f};
+    planes[1].d = 10;
+    planes[1].material_index = 1;
+    
+    planes[2].n = {-1.0f, 0.0f, 0.0f};
+    planes[2].d = 10;
+    planes[2].material_index = 1;
+    
+    planes[3].n = {0.0f, -1.0f, 0.0f};
+    planes[3].d = 10;
+    planes[3].material_index = 1;
+    
+    planes[4].n = {0.0f, 0.0f, -1.0f};
+    planes[4].d = 10;
+    planes[4].material_index = 1;
+#endif
+    
+
     sphere_t spheres[4] = {};
-spheres[0].p = {-0.5f, 1.0f, 2.1f};
+spheres[0].p = {0.0f, 0.0f, 0.0f};
 spheres[0].r = 1.0f;
-spheres[0].material_index = 3;
+spheres[0].material_index = 2;
 
-    spheres[1].p = {-2.0f, -2.0f, 1.5f};
-    spheres[1].r = 0.25f;
-    spheres[1].material_index = 2;
+    spheres[1].p = {3.0f, -2.0f, 0.0f};
+    spheres[1].r = 1.0f;
+    spheres[1].material_index = 3;
 
-    spheres[2].p = {2.0f, -1.0f, -0.1f};
+    spheres[2].p = {-2.0f, -1.0f, 2.0f};
     spheres[2].r = 1.0f;
     spheres[2].material_index = 4;
-
-    spheres[3].p = {-2.5f, 0.5f, 1.5f};
+    
+    spheres[3].p = {1.0f, -1.0f, 3.0f};
     spheres[3].r = 1.0f;
     spheres[3].material_index = 5;
-
+    
     
 world_t world = {};
 world.num_materials = ArrayCount(materials);
@@ -297,8 +322,8 @@ world.planes = planes;
 world.num_spheres = ArrayCount(spheres);
 world.spheres = spheres;
 
-vec3_t eye_pos = {0.0f, -5.0f, 2.0f};
-vec3_t eye_z = Vec3Norm(eye_pos);
+vec3_t eye_pos = {0.0f, -10.0f, 1.0f};
+    vec3_t eye_z = Vec3Norm(eye_pos - vec3_t{0.0f, -9.0f, 1.0f});
 vec3_t eye_x = Vec3Norm(Cross3(vec3_t{0.0f, 0.0f, 1.0f}, eye_z));
 vec3_t eye_y = Vec3Norm(Cross3(eye_z, eye_x));
 

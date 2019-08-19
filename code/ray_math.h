@@ -288,14 +288,51 @@ RoundReal32ToU32(r32 value)
 	return result;
 }
 
-u32 PackRGBA(vec4_t color) 
+internal u32 
+PackRGBA(vec4_t color) 
 {
 	u32 result = (RoundReal32ToU32(color.a * 255.0f) << 24 |
 				  RoundReal32ToU32(color.r * 255.0f) << 16 |
 				  RoundReal32ToU32(color.g * 255.0f) << 8  |
 				  RoundReal32ToU32(color.b * 255.0f));
     
+
 	return result;
+}
+
+internal vec4_t
+Linear1ToSRGB(vec4_t color)
+{
+vec4_t result;
+
+result.r = (r32)(sqrt(color.r));
+result.g = (r32)(sqrt(color.g));
+result.b = (r32)(sqrt(color.b));
+result.a = color.a;
+
+return result;
+}
+
+internal r32
+ExactLinearTosRGB(r32 linear)
+{
+r32 result;
+if(linear < 0.0f)
+{
+linear = 0.0f;
+}
+else if(linear > 1.0f)
+{
+linear = 1.0f;
+}
+
+result = linear*12.92f;
+if(linear > 0.0031308f)
+{
+result = 1.055f*(r32)pow(linear, 1.0f/2.4f) - 0.055f;
+}
+
+return result;
 }
 
 internal r32
