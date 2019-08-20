@@ -144,7 +144,7 @@ internal void
 RayTrace(world_t *world, image_t *image, viewpoint_t *eye)
 {
     u32 *pixel = image->pixels;
-    u32 num_rays_per_pixel = 32;
+    u32 num_rays_per_pixel = 32*2;
 r32 pixel_filter = 1.0f / (r32)num_rays_per_pixel;
 u32 image_width = image->width;
     u32 image_height = image->height;
@@ -261,28 +261,29 @@ main(int argc, char **argv)
 {
 image_t ray_traced_image = CreateImage(1280, 720, NULL);
 
-material_t materials[6] = {};
-materials[0].emit_color = {0.3f, 0.4f, 0.5f};
-materials[1].refl_color = {0.5f, 0.5f, 0.5f};
+material_t materials[7] = {};
+materials[0].refl_color = {0.4f, 0.4f, 0.4f};
+materials[1].refl_color = {0.3f, 0.3f, 0.3f};
+materials[1].scatter = 0.75f;
 materials[2].refl_color = {0.7f, 0.5f, 0.3f};
-materials[3].emit_color = {8.0f, 0.0f, 0.0f};
+materials[3].emit_color = {5.0f, 0.0f, 0.0f};
 materials[4].refl_color = {0.2f, 0.8f, 0.2f};
 materials[4].scatter = 0.7f;
 materials[5].refl_color = {0.4f, 0.8f, 0.9f};
 materials[5].scatter = 0.85f;
-
+    materials[6].emit_color = {1.0f, 1.0f, 1.0f};
+    
 // Worldspace: x goes to right, y goes forward, z goes up the plane
-plane_t planes[1] = {};
+plane_t planes[5] = {};
 planes[0].n = {0.0f, 0.0f, 1.0f};
 planes[0].d = 0;
 planes[0].material_index = 1;
 
-    #if 0
-planes[1].n = {1.0f, 0.0f, 0.0f};
+planes[1].n = {-1.0f, 0.0f, 0.0f};
     planes[1].d = 10;
     planes[1].material_index = 1;
     
-    planes[2].n = {-1.0f, 0.0f, 0.0f};
+    planes[2].n = {1.0f, 0.0f, 0.0f};
     planes[2].d = 10;
     planes[2].material_index = 1;
     
@@ -292,8 +293,7 @@ planes[1].n = {1.0f, 0.0f, 0.0f};
     
     planes[4].n = {0.0f, 0.0f, -1.0f};
     planes[4].d = 10;
-    planes[4].material_index = 1;
-#endif
+    planes[4].material_index = 6;
     
 
     sphere_t spheres[4] = {};
@@ -337,6 +337,7 @@ RayTrace(&world, &ray_traced_image, &eye);
 SaveBMP(&ray_traced_image, "ray.bmp");
 
 printf("\nDone!\n");
+system("start ray.bmp");
 
 return 0;
 }
